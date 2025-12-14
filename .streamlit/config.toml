@@ -1,0 +1,9 @@
+[server]
+# Bind only to localhost - not accessible from network
+address = "127.0.0.1"
+port = 8501
+headless = true
+
+[browser]
+# Disable usage statistics
+gatherUsageStats = false

@@ -1,0 +1,41 @@
+# Environment variables - NEVER commit this!
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Backups created by the app
+backups/
+
+# Output files
+*_categorized.xlsx
+
+# Sample/test data
+*.xlsx
