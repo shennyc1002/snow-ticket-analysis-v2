@@ -44,22 +44,31 @@ class GPTWrapperClient:
         auth_url: str = None,
         client_id: str = None,
         client_secret: str = None,
-        gpt_wrapper_url: str = None
+        gpt_wrapper_base_url: str = None,
+        api_version: str = None
     ):
         self.auth_url = auth_url or config.AUTH_URL
         self.client_id = client_id or config.CLIENT_ID
         self.client_secret = client_secret or config.CLIENT_SECRET
-        self.gpt_wrapper_url = gpt_wrapper_url or config.GPT_WRAPPER_URL
+        self.gpt_wrapper_base_url = gpt_wrapper_base_url or config.GPT_WRAPPER_BASE_URL
+        self.api_version = api_version or config.GPT_API_VERSION
 
         self._token: Optional[TokenInfo] = None
         self._session = requests.Session()
 
         # Validate configuration
-        if not all([self.auth_url, self.client_id, self.client_secret, self.gpt_wrapper_url]):
+        if not all([self.auth_url, self.client_id, self.client_secret, self.gpt_wrapper_base_url]):
             raise GPTClientError(
                 "Missing required configuration. Please set AUTH_URL, CLIENT_ID, "
-                "CLIENT_SECRET, and GPT_WRAPPER_URL in your .env file."
+                "CLIENT_SECRET, and GPT_WRAPPER_BASE_URL in your .env file."
             )
+
+    def _build_url(self, model: str) -> str:
+        """Build the full API URL with model embedded.
+
+        Format: {base_url}/{model}/chat/completions?api-version={version}
+        """
+        return f"{self.gpt_wrapper_base_url}/{model}/chat/completions?api-version={self.api_version}"
 
     def _authenticate(self) -> TokenInfo:
         """
@@ -121,7 +130,7 @@ class GPTWrapperClient:
 
         Args:
             messages: List of message dicts with 'role' and 'content'
-            model: Model name (defaults to config.MODEL_NAME)
+            model: Model name (defaults to config.MODEL_NAME) - embedded in URL
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature
             response_format: Optional format specification (e.g., {"type": "json_object"})
@@ -130,9 +139,12 @@ class GPTWrapperClient:
             API response as dictionary
         """
         token = self._get_token()
+        model_name = model or config.MODEL_NAME
+
+        # Build URL with model embedded
+        api_url = self._build_url(model_name)
 
         payload = {
-            "model": model or config.MODEL_NAME,
             "messages": messages,
             "max_tokens": max_tokens or config.MAX_TOKENS,
             "temperature": temperature,
@@ -148,7 +160,7 @@ class GPTWrapperClient:
 
         try:
             response = self._session.post(
-                self.gpt_wrapper_url,
+                api_url,
                 json=payload,
                 headers=headers,
                 timeout=120  # Longer timeout for GPT responses
@@ -160,7 +172,7 @@ class GPTWrapperClient:
                 token = self._get_token()
                 headers["Authorization"] = f"Bearer {token}"
                 response = self._session.post(
-                    self.gpt_wrapper_url,
+                    api_url,
                     json=payload,
                     headers=headers,
                     timeout=120

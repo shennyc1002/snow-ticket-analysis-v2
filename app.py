@@ -212,23 +212,33 @@ def main():
                 help="OAuth2 client secret"
             )
 
-            gpt_wrapper_url = st.text_input(
-                "GPT Wrapper URL",
-                value=os.getenv("GPT_WRAPPER_URL", config.GPT_WRAPPER_URL),
-                help="URL for the GPT wrapper API"
+            st.subheader("GPT API Settings")
+
+            gpt_base_url = st.text_input(
+                "GPT Base URL",
+                value=os.getenv("GPT_WRAPPER_BASE_URL", config.GPT_WRAPPER_BASE_URL),
+                help="Base URL (model will be appended: {base}/{model}/chat/completions)"
+            )
+
+            api_version = st.text_input(
+                "API Version",
+                value=os.getenv("GPT_API_VERSION", config.GPT_API_VERSION),
+                help="API version parameter (e.g., 2024-02-15-preview)"
             )
 
             # Update config
-            if auth_url and client_id and client_secret and gpt_wrapper_url:
+            if auth_url and client_id and client_secret and gpt_base_url:
                 config.AUTH_URL = auth_url
                 config.CLIENT_ID = client_id
                 config.CLIENT_SECRET = client_secret
-                config.GPT_WRAPPER_URL = gpt_wrapper_url
+                config.GPT_WRAPPER_BASE_URL = gpt_base_url
+                config.GPT_API_VERSION = api_version
                 config.USE_WRAPPER_API = True
                 os.environ["AUTH_URL"] = auth_url
                 os.environ["CLIENT_ID"] = client_id
                 os.environ["CLIENT_SECRET"] = client_secret
-                os.environ["GPT_WRAPPER_URL"] = gpt_wrapper_url
+                os.environ["GPT_WRAPPER_BASE_URL"] = gpt_base_url
+                os.environ["GPT_API_VERSION"] = api_version
                 api_configured = True
             else:
                 api_configured = False
