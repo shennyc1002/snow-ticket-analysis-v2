@@ -15,19 +15,30 @@ CLIENT_ID = os.getenv("CLIENT_ID", "")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET", "")
 
 # GPT Wrapper API Settings
-GPT_WRAPPER_URL = os.getenv("GPT_WRAPPER_URL", "https://your-org-gpt-wrapper.example.com/v1/chat/completions")
+# URL format: https://your-org/{model}/chat/completions?api-version={version}
+GPT_WRAPPER_BASE_URL = os.getenv("GPT_WRAPPER_BASE_URL", "https://your-org-gpt-wrapper.example.com")
+GPT_API_VERSION = os.getenv("GPT_API_VERSION", "2024-02-15-preview")
 
 # Optional: Direct OpenAI API Key (if wrapper not configured)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Use wrapper API if credentials are provided, otherwise fall back to direct OpenAI
-USE_WRAPPER_API = bool(CLIENT_ID and CLIENT_SECRET and GPT_WRAPPER_URL)
+USE_WRAPPER_API = bool(CLIENT_ID and CLIENT_SECRET and GPT_WRAPPER_BASE_URL)
 
 # =============================================================================
 # Model Configuration
 # =============================================================================
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o")  # Can also use "gpt-4o-mini"
 MAX_TOKENS = 4096
+
+
+def get_gpt_wrapper_url(model_name: str = None) -> str:
+    """Build the full GPT wrapper URL with model embedded.
+
+    Format: {base_url}/{model}/chat/completions?api-version={version}
+    """
+    model = model_name or MODEL_NAME
+    return f"{GPT_WRAPPER_BASE_URL}/{model}/chat/completions?api-version={GPT_API_VERSION}"
 
 # =============================================================================
 # Excel Column Configuration (matches ServiceNow export)
