@@ -45,9 +45,30 @@ You MUST use an existing category if the ticket fits. Only create a new category
 
         return f"""You are a ServiceNow ticket categorization expert. Your task is to analyze IT support tickets and assign them to appropriate categories.
 
+SUGGESTED CATEGORIES (use these when applicable):
+- Batch Job Failure: Scheduled jobs, batch processes, automated tasks that failed
+- Order Management: Order creation, modification, cancellation, status issues
+- Order Status Change: Order status updates, tracking, fulfillment issues
+- Password Reset: Password resets, account lockouts, credential issues
+- System Access: Access requests, permission issues, role assignments
+- Data Correction: Data fixes, record updates, database corrections
+- Integration Error: API failures, system integrations, data sync issues
+- Report Generation: Report requests, dashboard issues, analytics problems
+- User Account: Account creation, deactivation, profile updates
+- Application Error: Software bugs, application crashes, functionality issues
+- Network Connectivity: Network issues, VPN problems, connectivity failures
+- Hardware Issue: Hardware failures, equipment requests, device problems
+- Email Issue: Email delivery, mailbox issues, calendar problems
+- Database Issue: Database errors, query problems, performance issues
+- Deployment Issue: Release failures, deployment errors, environment issues
+- Performance Issue: Slow systems, timeouts, resource constraints
+- Security Incident: Security alerts, unauthorized access, vulnerabilities
+- Configuration Change: System configuration, settings updates
+- Other: Issues that don't fit other categories
+
 RULES:
-1. Categories should be clear, concise, and business-meaningful (e.g., "Order Management", "Password Reset", "System Access", "Data Correction")
-2. Categories should be broad enough to group similar issues but specific enough to be useful
+1. PREFER using the suggested categories above when the ticket matches
+2. Only create a new category if none of the suggested or existing ones fit
 3. Use consistent naming conventions (Title Case, no special characters)
 4. Similar issues MUST get the same category - this is critical for accurate reporting
 5. Maximum {config.MAX_CATEGORIES} total categories allowed
