@@ -75,6 +75,54 @@ class PIIScrubber:
                 r'/(?:home|Users)/[a-zA-Z0-9_.-]+',
                 re.IGNORECASE
             ),
+
+            # Order IDs (common patterns like ORD-12345, ORDER-123456, #12345)
+            "order_id": re.compile(
+                r'\b(?:ORD|ORDER|PO|SO)[-_#]?\d{4,12}\b|#\d{5,12}\b',
+                re.IGNORECASE
+            ),
+
+            # Batch/Job IDs (JOB-123, BATCH_456, job_id: 789)
+            "batch_job_id": re.compile(
+                r'\b(?:JOB|BATCH|TASK|PROCESS)[-_#:]?\s*\d{3,12}\b',
+                re.IGNORECASE
+            ),
+
+            # Transaction IDs (TXN-123, TRANS_456)
+            "transaction_id": re.compile(
+                r'\b(?:TXN|TRANS|TRANSACTION)[-_#:]?\s*[A-Z0-9]{6,20}\b',
+                re.IGNORECASE
+            ),
+
+            # Customer IDs (CUST-123, CID_456)
+            "customer_id": re.compile(
+                r'\b(?:CUST|CID|CUSTOMER)[-_#:]?\s*\d{4,12}\b',
+                re.IGNORECASE
+            ),
+
+            # Account numbers
+            "account_number": re.compile(
+                r'\b(?:ACCT|ACC|ACCOUNT)[-_#:]?\s*\d{6,15}\b',
+                re.IGNORECASE
+            ),
+
+            # Case/Ticket numbers (INC123456, RITM0012345, REQ000123)
+            "ticket_number": re.compile(
+                r'\b(?:INC|RITM|REQ|CHG|PRB|TASK)\d{6,12}\b',
+                re.IGNORECASE
+            ),
+
+            # Server/Host names (server01.domain.com, HOST-PROD-01)
+            "hostname": re.compile(
+                r'\b(?:[a-zA-Z]+-)?(?:PROD|DEV|UAT|QA|STG|TEST)[-_]?[a-zA-Z0-9]+(?:\.[a-zA-Z0-9.-]+)?\b',
+                re.IGNORECASE
+            ),
+
+            # Database names (DB_PROD, database: mydb)
+            "database": re.compile(
+                r'\b(?:DB|DATABASE)[-_:]?\s*[A-Z0-9_]{3,30}\b',
+                re.IGNORECASE
+            ),
         }
 
         # Replacement tokens
@@ -89,6 +137,14 @@ class PIIScrubber:
             "url": "[URL]",
             "windows_path": "[FILE_PATH]",
             "unix_path": "[FILE_PATH]",
+            "order_id": "[ORDER_ID]",
+            "batch_job_id": "[JOB_ID]",
+            "transaction_id": "[TRANSACTION_ID]",
+            "customer_id": "[CUSTOMER_ID]",
+            "account_number": "[ACCOUNT_NUMBER]",
+            "ticket_number": "[TICKET_NUMBER]",
+            "hostname": "[HOSTNAME]",
+            "database": "[DATABASE]",
         }
 
     def scrub(self, text: Optional[str]) -> str:
