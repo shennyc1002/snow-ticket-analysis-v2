@@ -39,3 +39,7 @@ backups/
 
 # Sample/test data
 *.xlsx
+
+requirements.md
+.claude/
+nul

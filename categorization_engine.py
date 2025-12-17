@@ -3,6 +3,7 @@
 import json
 from typing import Optional
 from gpt_client import get_gpt_client, GPTClientError
+from pii_scrubber import scrub_tickets
 import config
 
 
@@ -79,7 +80,10 @@ IMPORTANT:
         if existing_categories is None:
             existing_categories = self.established_categories
 
-        prompt = self._build_categorization_prompt(tickets, existing_categories)
+        # Scrub PII before sending to LLM
+        scrubbed_tickets = scrub_tickets(tickets)
+
+        prompt = self._build_categorization_prompt(scrubbed_tickets, existing_categories)
 
         try:
             response_text = self.client.get_completion_text(

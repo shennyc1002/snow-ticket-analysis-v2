@@ -29,6 +29,10 @@ class TokenInfo:
         return time.time() >= (self.expires_at - 60)
 
 
+# Global token cache - persists across Streamlit reruns
+_global_token_cache: Optional[TokenInfo] = None
+
+
 class GPTWrapperClient:
     """
     GPT Client that authenticates via OAuth2 and calls organization's wrapper API.
@@ -113,8 +117,18 @@ class GPTWrapperClient:
 
     def _get_token(self) -> str:
         """Get valid access token, refreshing if necessary."""
+        global _global_token_cache
+
+        # Check global cache first
+        if _global_token_cache is not None and not _global_token_cache.is_expired():
+            self._token = _global_token_cache
+            return self._token.access_token
+
+        # Need to authenticate
         if self._token is None or self._token.is_expired():
             self._token = self._authenticate()
+            _global_token_cache = self._token  # Cache globally
+
         return self._token.access_token
 
     def chat_completion(
@@ -144,12 +158,14 @@ class GPTWrapperClient:
         # Build URL with model embedded
         api_url = self._build_url(model_name)
 
+        # Build payload - messages is already in format [{"role": "user", "content": "..."}]
         payload = {
-            "messages": messages,
-            "max_tokens": max_tokens or config.MAX_TOKENS,
-            "temperature": temperature,
+            "messages": messages
         }
 
+        # Optional parameters - comment out if your wrapper doesn't support them
+        payload["max_tokens"] = max_tokens or config.MAX_TOKENS
+        payload["temperature"] = temperature
         if response_format:
             payload["response_format"] = response_format
 
@@ -158,25 +174,41 @@ class GPTWrapperClient:
             "Content-Type": "application/json"
         }
 
+        # Convert payload to proper JSON string
+        import json as json_module
+        json_body = json_module.dumps(payload, ensure_ascii=False)
+
+        # Debug: Print the actual JSON being sent (flush=True ensures immediate output)
+        print(f"[DEBUG] Request URL: {api_url}", flush=True)
+        print(f"[DEBUG] Request Body:\n{json_body}", flush=True)
+
         try:
+            print(f"[DEBUG] Sending request...", flush=True)
             response = self._session.post(
                 api_url,
-                json=payload,
+                data=json_body,  # Send as string, not dict
                 headers=headers,
                 timeout=120  # Longer timeout for GPT responses
             )
+            print(f"[DEBUG] Request completed.", flush=True)
 
             if response.status_code == 401:
-                # Token might be invalid, try to refresh and retry
+                # Token might be invalid, clear cache and retry
+                global _global_token_cache
                 self._token = None
+                _global_token_cache = None
                 token = self._get_token()
                 headers["Authorization"] = f"Bearer {token}"
                 response = self._session.post(
                     api_url,
-                    json=payload,
+                    data=json_body,  # Send as string, not dict
                     headers=headers,
                     timeout=120
                 )
+
+            # Debug: Print response status (flush=True ensures immediate output)
+            print(f"[DEBUG] Response Status: {response.status_code}", flush=True)
+            print(f"[DEBUG] Response Body: {response.text[:500]}...", flush=True)  # First 500 chars
 
             if response.status_code != 200:
                 raise GPTClientError(
@@ -186,7 +218,11 @@ class GPTWrapperClient:
             return response.json()
 
         except requests.RequestException as e:
+            print(f"[ERROR] Request exception: {e}", flush=True)
             raise GPTClientError(f"GPT API request failed: {e}")
+        except Exception as e:
+            print(f"[ERROR] Unexpected exception: {type(e).__name__}: {e}", flush=True)
+            raise
 
     def get_completion_text(
         self,
