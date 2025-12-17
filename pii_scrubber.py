@@ -1,0 +1,165 @@
+"""PII Scrubber - Removes sensitive information before sending to LLM."""
+
+import re
+from typing import Optional
+
+
+class PIIScrubber:
+    """Removes PII (Personally Identifiable Information) from text."""
+
+    def __init__(self):
+        # Compile regex patterns for performance
+        self.patterns = {
+            # Email addresses
+            "email": re.compile(
+                r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            ),
+
+            # Phone numbers (various formats)
+            "phone": re.compile(
+                r'''
+                (?:
+                    (?:\+?1[-.\s]?)?              # Optional country code
+                    (?:\(?\d{3}\)?[-.\s]?)        # Area code
+                    \d{3}[-.\s]?\d{4}             # Main number
+                )
+                |
+                (?:
+                    \+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}  # International
+                )
+                ''',
+                re.VERBOSE
+            ),
+
+            # Social Security Numbers (US)
+            "ssn": re.compile(
+                r'\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b'
+            ),
+
+            # Credit Card Numbers (basic patterns)
+            "credit_card": re.compile(
+                r'\b(?:\d{4}[-.\s]?){3}\d{4}\b|\b\d{15,16}\b'
+            ),
+
+            # IP Addresses
+            "ip_address": re.compile(
+                r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+            ),
+
+            # Names after common prefixes (Mr., Mrs., Ms., Dr., etc.)
+            "name_prefix": re.compile(
+                r'\b(?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Prof\.?)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?',
+                re.IGNORECASE
+            ),
+
+            # Employee IDs (common patterns like EMP001, E12345)
+            "employee_id": re.compile(
+                r'\b(?:EMP|E|ID)[-_]?\d{3,8}\b',
+                re.IGNORECASE
+            ),
+
+            # URLs (may contain sensitive info)
+            "url": re.compile(
+                r'https?://[^\s<>"{}|\\^`\[\]]+',
+                re.IGNORECASE
+            ),
+
+            # Windows file paths with usernames
+            "windows_path": re.compile(
+                r'[A-Za-z]:\\(?:Users|Documents and Settings)\\[^\\]+',
+                re.IGNORECASE
+            ),
+
+            # Unix home paths
+            "unix_path": re.compile(
+                r'/(?:home|Users)/[a-zA-Z0-9_.-]+',
+                re.IGNORECASE
+            ),
+        }
+
+        # Replacement tokens
+        self.replacements = {
+            "email": "[EMAIL]",
+            "phone": "[PHONE]",
+            "ssn": "[SSN]",
+            "credit_card": "[CREDIT_CARD]",
+            "ip_address": "[IP_ADDRESS]",
+            "name_prefix": "[NAME]",
+            "employee_id": "[EMPLOYEE_ID]",
+            "url": "[URL]",
+            "windows_path": "[FILE_PATH]",
+            "unix_path": "[FILE_PATH]",
+        }
+
+    def scrub(self, text: Optional[str]) -> str:
+        """
+        Remove PII from text.
+
+        Args:
+            text: Input text that may contain PII
+
+        Returns:
+            Text with PII replaced by tokens
+        """
+        if not text:
+            return text or ""
+
+        result = text
+
+        for pii_type, pattern in self.patterns.items():
+            replacement = self.replacements.get(pii_type, "[REDACTED]")
+            result = pattern.sub(replacement, result)
+
+        return result
+
+    def scrub_ticket(self, ticket: dict) -> dict:
+        """
+        Scrub PII from a ticket dictionary.
+
+        Args:
+            ticket: Ticket dict with fields like short_description, description, solution
+
+        Returns:
+            New ticket dict with PII removed
+        """
+        scrubbed = ticket.copy()
+
+        # Fields to scrub
+        text_fields = ['short_description', 'description', 'solution']
+
+        for field in text_fields:
+            if field in scrubbed and scrubbed[field]:
+                scrubbed[field] = self.scrub(str(scrubbed[field]))
+
+        return scrubbed
+
+    def scrub_tickets(self, tickets: list[dict]) -> list[dict]:
+        """
+        Scrub PII from a list of tickets.
+
+        Args:
+            tickets: List of ticket dictionaries
+
+        Returns:
+            List of tickets with PII removed
+        """
+        return [self.scrub_ticket(ticket) for ticket in tickets]
+
+
+# Singleton instance for easy import
+_scrubber = PIIScrubber()
+
+
+def scrub_text(text: str) -> str:
+    """Convenience function to scrub text."""
+    return _scrubber.scrub(text)
+
+
+def scrub_ticket(ticket: dict) -> dict:
+    """Convenience function to scrub a ticket."""
+    return _scrubber.scrub_ticket(ticket)
+
+
+def scrub_tickets(tickets: list[dict]) -> list[dict]:
+    """Convenience function to scrub multiple tickets."""
+    return _scrubber.scrub_tickets(tickets)
