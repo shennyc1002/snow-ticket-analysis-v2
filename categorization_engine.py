@@ -4,6 +4,7 @@ import json
 from typing import Optional
 from gpt_client import get_gpt_client, GPTClientError
 from pii_scrubber import scrub_tickets
+from text_preprocessor import process_tickets as preprocess_tickets
 import config
 
 
@@ -45,12 +46,44 @@ You MUST use an existing category if the ticket fits. Only create a new category
 
         return f"""You are a ServiceNow ticket categorization expert. Your task is to analyze IT support tickets and assign them to appropriate categories.
 
+CRITICAL - ANTI-HALLUCINATION RULES:
+- ONLY use information explicitly provided in the ticket text
+- DO NOT infer, assume, or guess details not present in the text
+- If text shows [TRUNCATED], base categorization ONLY on available text
+- If text shows [EMAIL], [PHONE], [ORDER_ID] etc., these are redacted - do NOT guess original values
+- When in doubt, use "Insufficient Information" or "Other" category
+- Short Description is the most reliable field - prioritize it when Description is limited
+
+SUGGESTED CATEGORIES (use these when applicable):
+- Batch Job Failure: Scheduled jobs, batch processes, automated tasks that failed
+- Order Management: Order creation, modification, cancellation, status issues
+- Order Status Change: Order status updates, tracking, fulfillment issues
+- Password Reset: Password resets, account lockouts, credential issues
+- System Access: Access requests, permission issues, role assignments
+- Data Correction: Data fixes, record updates, database corrections
+- Integration Error: API failures, system integrations, data sync issues
+- Report Generation: Report requests, dashboard issues, analytics problems
+- User Account: Account creation, deactivation, profile updates
+- Application Error: Software bugs, application crashes, functionality issues
+- Network Connectivity: Network issues, VPN problems, connectivity failures
+- Hardware Issue: Hardware failures, equipment requests, device problems
+- Email Issue: Email delivery, mailbox issues, calendar problems
+- Database Issue: Database errors, query problems, performance issues
+- Deployment Issue: Release failures, deployment errors, environment issues
+- Performance Issue: Slow systems, timeouts, resource constraints
+- Security Incident: Security alerts, unauthorized access, vulnerabilities
+- Configuration Change: System configuration, settings updates
+- Insufficient Information: Not enough details to categorize accurately
+- Other: Issues that don't fit other categories
+
 RULES:
-1. Categories should be clear, concise, and business-meaningful (e.g., "Order Management", "Password Reset", "System Access", "Data Correction")
-2. Categories should be broad enough to group similar issues but specific enough to be useful
+1. PREFER using the suggested categories above when the ticket matches
+2. Only create a new category if none of the suggested or existing ones fit
 3. Use consistent naming conventions (Title Case, no special characters)
 4. Similar issues MUST get the same category - this is critical for accurate reporting
 5. Maximum {config.MAX_CATEGORIES} total categories allowed
+6. If a ticket has very little information ([TRUNCATED] or minimal text), use the SHORT DESCRIPTION as primary signal
+7. If insufficient information to categorize, use "Insufficient Information" category - do NOT guess
 {existing_cats_text}
 
 TICKETS TO CATEGORIZE:
@@ -80,8 +113,19 @@ IMPORTANT:
         if existing_categories is None:
             existing_categories = self.established_categories
 
-        # Scrub PII before sending to LLM
-        scrubbed_tickets = scrub_tickets(tickets)
+        # Step 1: Preprocess - clean email trails, truncate long text
+        preprocessed_tickets = preprocess_tickets(tickets)
+
+        # Step 2: Scrub PII before sending to LLM
+        scrubbed_tickets = scrub_tickets(preprocessed_tickets)
+
+        # Step 3: Check for low-context tickets and warn
+        low_context_indices = [
+            t['index'] for t in scrubbed_tickets
+            if t.get('_low_context', False)
+        ]
+        if low_context_indices:
+            print(f"[WARN] Low context tickets (may be less accurate): {low_context_indices}", flush=True)
 
         prompt = self._build_categorization_prompt(scrubbed_tickets, existing_categories)
 
